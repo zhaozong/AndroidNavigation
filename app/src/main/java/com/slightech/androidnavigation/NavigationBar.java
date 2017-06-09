@@ -1,10 +1,9 @@
 package com.slightech.androidnavigation;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
 import android.graphics.PixelFormat;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -15,31 +14,66 @@ import de.greenrobot.event.EventBus;
 import static android.content.Context.WINDOW_SERVICE;
 
 /**
- * Created by Rokey on 2017/5/9.
+ * Created by Rokey on 2017/6/9.
  */
 
-public class BootBroadcastReceiver extends BroadcastReceiver {
-    private static Thread navigationThread;
-    private float moveX = 0;
-    private float moveY = 0;
-    @Override
-    public void onReceive(Context context, Intent intent) {
-//        Intent startIntent = new Intent(context,MainActivity.class);
-//        startIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//        context.startActivity(startIntent);
+public class NavigationBar {
+    private static final int SHOW = 0;
+    private static final int HIDE = 1;
+    private Thread navigationThread;
+    private float moveX;
+    private float moveY;
+    private WindowManager wm;
+    private View view;
+    public Handler handler;
+
+    private static NavigationBar navigationBar;
+    private WindowManager.LayoutParams params;
+
+    public static NavigationBar getInstance() {
+        if (navigationBar == null) {
+            synchronized (NavigationBar.class) {
+                if (navigationBar == null) {
+                    navigationBar = new NavigationBar();
+                }
+            }
+        }
+        return navigationBar;
+    }
+
+    private NavigationBar() {
         if (navigationThread == null) {
             navigationThread = new Thread() {
-                private WindowManager.LayoutParams params;
-                private WindowManager wm;
+
 
                 @Override
                 public void run() {
                     Looper.prepare();
 
+                    handler = new Handler(new Handler.Callback() {
+                        @Override
+                        public boolean handleMessage(Message msg) {
+                            switch (msg.what) {
+                                case HIDE:
+                                    if (wm != null && view != null) {
+                                        view.setVisibility(View.GONE);
+                                    }
+                                    break;
+                                case SHOW:
+                                    if (wm != null && view != null) {
+                                        view.setVisibility(View.VISIBLE);
+                                    }
+                                    break;
+                            }
+                            return true;
+                        }
+                    });
+
+
                     //拿到windowManager,窗口机制
                     wm = (WindowManager) MyApplication.context.getSystemService(WINDOW_SERVICE);
                     //和activity上下文没关系。
-                    final View view = View.inflate(MyApplication.context, R.layout.item, null);
+                    view = View.inflate(MyApplication.context, R.layout.item, null);
                     params = new WindowManager.LayoutParams();
                     //最大的层级，可以显示在其他应用的上面
                     params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ERROR;
@@ -128,4 +162,17 @@ public class BootBroadcastReceiver extends BroadcastReceiver {
             navigationThread.start();
         }
     }
+
+    public void hideNavigationBar() {
+        if (handler != null) {
+            handler.sendEmptyMessage(HIDE);
+        }
+    }
+
+    public void showNavigationBar(){
+        if (handler !=null){
+            handler.sendEmptyMessage(SHOW);
+        }
+    }
+
 }
